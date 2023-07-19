@@ -5,66 +5,106 @@ const listEditRouter = require('./list-edit-router');
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const dotenv = require('dotenv');
-
-dotenv.config();
+const express = require('express');
+const express = require('express');
 
 const app = express();
 app.use(express.json());
 
-const users = [
-  { id: 1, username: 'usuario1', password: 'password1' },
-  { id: 2, username: 'usuario2', password: 'password2' },
-  // Agrega más usuarios si es necesario
+let tasks = [
+  { id: 1, description: 'Tarea 1', completed: false },
+  { id: 2, description: 'Tarea 2', completed: true },
+  // Agrega más tareas si es necesario
 ];
+let nextTaskId = tasks.length + 1;
 
-// Ruta de autenticación /login
-app.post('/login', (req, res) => {
-  const { username, password } = req.body;
-
-  // Buscar el usuario en el array de usuarios
-  const user = users.find(u => u.username === username && u.password === password);
-
-  if (!user) {
-    return res.status(401).json({ error: 'Credenciales inválidas' });
-  }
-
-  // Generar el token JWT
-  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-  res.json({ token });
+// Obtener todas las tareas
+app.get('/tasks', (req, res) => {
+  res.json(tasks);
 });
 
-// Ruta protegida
-app.get('/ruta-protegida', (req, res) => {
-  const token = req.headers.authorization;
+// Obtener una sola tarea
+app.get('/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const task = tasks.find(t => t.id === taskId);
 
-  if (!token) {
-    return res.status(401).json({ error: 'Token no proporcionado' });
+  if (!task) {
+    return res.status(404).json({ error: 'Tarea no encontrada' });
   }
 
-  try {
-    // Verificar y decodificar el token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decoded.userId;
-
-    // Aquí puedes realizar las acciones necesarias para la ruta protegida
-    // Por ejemplo, buscar el usuario en la base de datos y devolver los datos relevantes
-
-    res.json({ message: 'Ruta protegida accedida correctamente', userId });
-  } catch (error) {
-    res.status(401).json({ error: 'Token inválido' });
-  }
+  res.json(task);
 });
 
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+// Crear una nueva tarea
+app.post('/tasks', (req, res) => {
+  const { description } = req.body;
 
-// Implementar routers
-app.use('/api/list-view', listViewRouter);
-app.use('/api/list-edit', listEditRouter);
+  if (!description) {
+    return res.status(400).json({ error: 'La descripción de la tarea es requerida' });
+  }
+
+  const newTask = {
+    id: nextTaskId++,
+    description,
+    completed: false
+  };
+
+  tasks.push(newTask);
+
+  res.status(201).json(newTask);
+});
+
+// Actualizar una tarea
+app.put('/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const task = tasks.find(t => t.id === taskId);
+
+  if (!task) {
+    return res.status(404).json({ error: 'Tarea no encontrada' });
+  }
+
+  const { description, completed } = req.body;
+
+  if (description) {
+    task.description = description;
+  }
+
+  if (completed !== undefined) {
+    task.completed = completed;
+  }
+
+  res.json(task);
+});
+
+// Eliminar una tarea
+app.delete('/tasks/:id', (req, res) => {
+  const taskId = parseInt(req.params.id);
+  const taskIndex = tasks.findIndex(t => t.id === taskId);
+
+  if (taskIndex === -1) {
+    return res.status(404).json({ error: 'Tarea no encontrada' });
+  }
+
+  const deletedTask = tasks.splice(taskIndex, 1)[0];
+
+  res.json(deletedTask);
+});
+
+// Obtener tareas completas
+app.get('/tasks/completed', (req, res) => {
+  const completedTasks = tasks.filter(t => t.completed);
+
+  res.json(completedTasks);
+});
+
+// Obtener tareas incompletas
+app.get('/tasks/incomplete', (req, res) => {
+  const incompleteTasks = tasks.filter(t => !t.completed);
+
+  res.json(incompleteTasks);
+});
 
 // Iniciar el servidor
-const port = 3000;
-app.listen(port, () => {
-  console.log(`Servidor iniciado en http://localhost:${port}`);
+app.listen(3000, () => {
+  console.log('Servidor iniciado en el puerto 3000');
 });
